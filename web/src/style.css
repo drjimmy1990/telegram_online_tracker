@@ -817,3 +817,6 @@ body {
   .manage-add-fields { flex-direction: column; }
   .manage-page { padding: var(--space-md); }
 }
+
+/* Chart container — fixed height to prevent Chart.js infinite growth */
+.chart-container { position: relative; width: 100%; }

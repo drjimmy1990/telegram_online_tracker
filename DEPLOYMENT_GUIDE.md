@@ -225,3 +225,4 @@ npm run build
 | Events not appearing | Check `docker compose logs -f` for errors |
 | SSL not working | Re-apply in aaPanel → SSL → Let's Encrypt |
 | Tracker stops after VPS reboot | `docker compose` has `restart: unless-stopped`, should auto-start. If not: `cd /www/wwwroot/tele && docker compose up -d` |
+| Build fails `.user.ini` | Run `chattr -i /www/wwwroot/tele/web/dist/.user.ini && rm -f /www/wwwroot/tele/web/dist/.user.ini` then rebuild |
