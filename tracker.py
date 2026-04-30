@@ -123,6 +123,7 @@ async def _resolve_single_target(phone: str) -> bool:
 
 async def poll_for_target_changes() -> None:
     """Periodically check the DB for new/removed targets."""
+    global RESOLVED_PHONES
     while True:
         await asyncio.sleep(60)  # Poll every 60 seconds
         try:
