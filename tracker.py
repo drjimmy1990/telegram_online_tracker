@@ -261,8 +261,15 @@ async def status_handler(event):
         await record_event(event.user_id, "Hidden")
 
 
+import os
+from fastapi.staticfiles import StaticFiles
+
+# Ensure downloads directory exists
+os.makedirs("downloads", exist_ok=True)
+
 # ── API Server ───────────────────────────────────────────────────
 app = FastAPI(title="Telegram Scraper API")
+app.mount("/api/v1/media", StaticFiles(directory="downloads"), name="media")
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if not x_api_key or x_api_key != config.API_KEY:
@@ -270,16 +277,28 @@ async def verify_api_key(x_api_key: str = Header(None)):
     return x_api_key
 
 @app.get("/api/v1/messages", dependencies=[Depends(verify_api_key)])
-async def get_messages(target: str, limit: int = 50, search: str = None):
+async def get_messages(target: str, limit: int = 50, search: str = None, download_media: bool = False):
     try:
         messages = []
         async for msg in client.iter_messages(target, limit=limit, search=search):
+            media_url = None
+            if msg.media:
+                media_url = "has_media" # default if not downloading
+                if download_media:
+                    # Download media to the downloads folder
+                    file_path = await client.download_media(msg, file="downloads/")
+                    if file_path:
+                        # Convert local path to API URL
+                        filename = os.path.basename(file_path)
+                        media_url = f"/api/v1/media/{filename}"
+
             messages.append({
                 "id": msg.id,
-                "text": msg.message,
+                "text": msg.message or "",
                 "date": msg.date.isoformat() if msg.date else None,
                 "sender_id": msg.sender_id,
-                "views": getattr(msg, "views", None)
+                "views": getattr(msg, "views", None),
+                "media": media_url
             })
         return {"target": target, "count": len(messages), "messages": messages}
     except Exception as e:

@@ -24,6 +24,7 @@ Fetch recent messages from a target group, channel, or user.
 | `target` | string | **Required** | The username (e.g. `BinanceAnnouncements`), invite link, or ID. |
 | `limit` | integer | `50` | Maximum number of messages to return. Max 100 recommended per request. |
 | `search` | string | *(empty)* | Optional. Only return messages containing this exact keyword. |
+| `download_media` | boolean | `false` | Optional. If `true`, downloads photos/videos to the server and returns a direct URL link in the `media` field. |
 
 ### 🚀 N8N Setup Guide
 
