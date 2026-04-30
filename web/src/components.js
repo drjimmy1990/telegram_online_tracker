@@ -260,7 +260,10 @@ function createEventRow(event, fullList) {
   // Compute duration: find the matching "end" event in the full list (DESC order)
   // For an Online event  → find the next Offline/non-Online event (= session end)
   // For an Offline event → find the next Online event (= how long they were away)
+  let durationHtml = '<span class="duration-text">—</span>';
   let durationMs = null;
+  let isLive = false;
+
   if (!isPrivacy) {
     const idx = fullList.findIndex((e) => e.id === event.id);
     if (idx >= 0) {
@@ -278,7 +281,18 @@ function createEventRow(event, fullList) {
         }
       }
       durationMs = computeEventDuration(event, endEvent);
+      
+      // If no end event and this is the most recent status, it's live
+      if (!endEvent && idx === 0) {
+        isLive = true;
+      }
     }
+  }
+
+  if (isLive) {
+    durationHtml = `<span class="duration-text live-duration" data-start="${time.toISOString()}">${formatDuration(durationMs)}</span>`;
+  } else if (durationMs !== null) {
+    durationHtml = `<span class="duration-text">${formatDuration(durationMs)}</span>`;
   }
 
   row.innerHTML = `
@@ -295,7 +309,7 @@ function createEventRow(event, fullList) {
       </div>
     </td>
     <td><span class="time-text">${formatTime(time)}</span></td>
-    <td><span class="duration-text">${durationMs !== null ? formatDuration(durationMs) : "—"}</span></td>
+    <td>${durationHtml}</td>
     <td><span class="last-seen-text">${event.was_last_seen ? formatTime(new Date(event.was_last_seen)) : "—"}</span></td>
   `;
   return row;

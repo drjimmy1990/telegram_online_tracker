@@ -18,7 +18,7 @@ import {
   removeTarget,
   toggleTarget,
 } from "./api.js";
-import { computeSessions, computeStats, computeHourlyActivity } from "./stats.js";
+import { computeSessions, computeStats, computeHourlyActivity, formatDuration } from "./stats.js";
 import { renderTimeline, renderTimelineHours } from "./timeline.js";
 import { renderActivityChart, renderWeeklyChart } from "./charts.js";
 import {
@@ -143,6 +143,17 @@ async function initDashboard() {
     statusFilter = btn.dataset.filter;
     renderFilteredHistory();
   });
+
+  // Setup live duration ticker
+  setInterval(() => {
+    document.querySelectorAll(".live-duration").forEach((el) => {
+      const startIso = el.getAttribute("data-start");
+      if (startIso) {
+        const ms = Date.now() - new Date(startIso).getTime();
+        el.textContent = formatDuration(ms);
+      }
+    });
+  }, 1000);
 
   // Target management form
   addTargetForm.addEventListener("submit", onAddTarget);
@@ -309,11 +320,10 @@ function setupRealtime() {
       renderDayView(currentEvents);
     }
 
-    // Prepend to history
-    const firstExisting = recentEvents.length > 0 ? recentEvents[0] : null;
+    // Update recent events and re-render history to respect current filters
     recentEvents.unshift(newEvent);
-    prependEventRow(historyBody, newEvent, firstExisting);
-    eventCountEl.textContent = `${recentEvents.length} events`;
+    if (recentEvents.length > 200) recentEvents.pop();
+    renderFilteredHistory();
   });
 
   // Mark connected after a short delay
