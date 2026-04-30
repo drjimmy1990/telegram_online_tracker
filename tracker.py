@@ -19,6 +19,9 @@ import logging
 from datetime import datetime, timezone
 
 import aiohttp
+from fastapi import FastAPI, HTTPException, Depends, Header, Security
+from fastapi.responses import JSONResponse
+import uvicorn
 from supabase import create_client
 from telethon import TelegramClient, events
 from telethon.tl.types import (
@@ -258,6 +261,32 @@ async def status_handler(event):
         await record_event(event.user_id, "Hidden")
 
 
+# ── API Server ───────────────────────────────────────────────────
+app = FastAPI(title="Telegram Scraper API")
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    if not x_api_key or x_api_key != config.API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
+    return x_api_key
+
+@app.get("/api/v1/messages", dependencies=[Depends(verify_api_key)])
+async def get_messages(target: str, limit: int = 50, search: str = None):
+    try:
+        messages = []
+        async for msg in client.iter_messages(target, limit=limit, search=search):
+            messages.append({
+                "id": msg.id,
+                "text": msg.message,
+                "date": msg.date.isoformat() if msg.date else None,
+                "sender_id": msg.sender_id,
+                "views": getattr(msg, "views", None)
+            })
+        return {"target": target, "count": len(messages), "messages": messages}
+    except Exception as e:
+        log.error("API error fetching messages for %s: %s", target, e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ── Main ─────────────────────────────────────────────────────────
 async def main():
     log.info("═══════════════════════════════════════════")
@@ -276,7 +305,10 @@ async def main():
     # Start polling for target changes in the background
     asyncio.create_task(poll_for_target_changes())
 
-    await client.run_until_disconnected()
+    log.info("   Starting API Server on port 8000...     ")
+    server_config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
+    server = uvicorn.Server(server_config)
+    await server.serve()
 
 
 with client:

@@ -37,3 +37,6 @@ SUPABASE_KEY = _require("SUPABASE_KEY")
 
 # ── Optional Webhook ──────────────────────────────────────────────
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "").strip() or None
+
+# ── API Security ──────────────────────────────────────────────────
+API_KEY = _require("API_KEY")

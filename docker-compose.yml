@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - "8000:8000"
     volumes:
       # Persist the session file so it survives container rebuilds
       - ./tracker_session.session:/app/tracker_session.session
