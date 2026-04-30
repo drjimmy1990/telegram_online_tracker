@@ -98,12 +98,17 @@ export function updateUserCardStatus(container, userId, status) {
   const card = container.querySelector(`[data-user-id="${userId}"]`);
   if (!card) return;
   const dot = card.querySelector(".status-indicator");
+  const isPrivacy = ["Recently", "Last Week", "Last Month", "Hidden"].includes(status);
   if (dot) {
-    dot.classList.toggle("online", status === "Online");
+    dot.classList.remove("online", "privacy");
+    if (status === "Online") dot.classList.add("online");
+    if (isPrivacy) dot.classList.add("privacy");
   }
   const lastSeen = card.querySelector(".user-last-seen");
   if (lastSeen) {
-    lastSeen.textContent = status === "Online" ? "Online now" : `Last seen just now`;
+    if (status === "Online") lastSeen.textContent = "Online now";
+    else if (isPrivacy) lastSeen.textContent = `🔒 ${status}`;
+    else lastSeen.textContent = "Last seen just now";
   }
 }
 
@@ -238,17 +243,31 @@ export function renderHistory(tbody, events, allEvents = null) {
   }
 }
 
+function getStatusClass(status) {
+  switch (status) {
+    case "Online": return "online";
+    case "Offline": return "offline";
+    case "Recently": return "privacy";
+    case "Last Week": return "privacy";
+    case "Last Month": return "privacy";
+    case "Hidden": return "privacy";
+    default: return "offline";
+  }
+}
+
 function createEventRow(event, nextEvent) {
   const row = document.createElement("tr");
   const isOnline = event.status === "Online";
+  const isPrivacy = ["Recently", "Last Week", "Last Month", "Hidden"].includes(event.status);
   const time = new Date(event.created_at);
-  const durationMs = computeEventDuration(event, nextEvent);
+  const durationMs = isPrivacy ? null : computeEventDuration(event, nextEvent);
   const displayName = event.display_name || event.user_id || "Unknown";
   const initial = getInitial(displayName.toString());
+  const statusClass = getStatusClass(event.status);
 
   row.innerHTML = `
     <td>
-      <span class="status-badge ${isOnline ? "online" : "offline"}">
+      <span class="status-badge ${statusClass}">
         <span class="status-badge-dot"></span>
         ${event.status}
       </span>

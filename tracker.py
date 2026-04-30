@@ -21,7 +21,14 @@ from datetime import datetime, timezone
 import aiohttp
 from supabase import create_client
 from telethon import TelegramClient, events
-from telethon.tl.types import UserStatusOnline, UserStatusOffline
+from telethon.tl.types import (
+    UserStatusOnline,
+    UserStatusOffline,
+    UserStatusRecently,
+    UserStatusLastWeek,
+    UserStatusLastMonth,
+    UserStatusEmpty,
+)
 
 import config
 
@@ -236,6 +243,18 @@ async def status_handler(event):
             "Offline",
             was_last_seen=getattr(event.status, "was_online", None),
         )
+
+    elif isinstance(event.status, UserStatusRecently):
+        await record_event(event.user_id, "Recently")
+
+    elif isinstance(event.status, UserStatusLastWeek):
+        await record_event(event.user_id, "Last Week")
+
+    elif isinstance(event.status, UserStatusLastMonth):
+        await record_event(event.user_id, "Last Month")
+
+    elif isinstance(event.status, UserStatusEmpty):
+        await record_event(event.user_id, "Hidden")
 
 
 # ── Main ─────────────────────────────────────────────────────────

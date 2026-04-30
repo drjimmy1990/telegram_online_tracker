@@ -373,6 +373,10 @@ body {
   box-shadow: 0 0 8px var(--accent-green-glow);
   animation: pulse 1.5s infinite;
 }
+.user-avatar .status-indicator.privacy {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
 
 .user-info { flex: 1; min-width: 0; }
 .user-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -561,6 +565,7 @@ body {
 }
 .status-badge.online { background: var(--accent-green-soft); color: var(--accent-green); }
 .status-badge.offline { background: var(--accent-red-soft); color: var(--accent-red); }
+.status-badge.privacy { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
 .status-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
 .user-cell { display: flex; align-items: center; gap: var(--space-sm); }
