@@ -720,3 +720,100 @@ body {
   cursor: pointer; transition: all var(--transition-fast);
 }
 .btn-add:hover { background: rgba(16,185,129,0.2); }
+
+/* ═══════ MANAGE TARGETS PAGE ═══════ */
+.manage-page {
+  padding: var(--space-xl);
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.manage-container { display: flex; flex-direction: column; gap: var(--space-lg); }
+.manage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-lg) 0;
+  border-bottom: 1px solid var(--border);
+}
+.manage-header-left { display: flex; align-items: center; gap: var(--space-md); }
+.manage-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.manage-subtitle { font-size: 0.8rem; color: var(--text-muted); margin: 4px 0 0; }
+.manage-badge { font-size: 0.9rem; padding: 4px 14px; }
+.btn-back {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); color: var(--text-secondary);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.btn-back:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+.btn-sidebar-nav {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 12px var(--space-md);
+  background: transparent; border: none; border-top: 1px solid var(--border);
+  color: var(--text-muted); font-family: var(--font-sans); font-size: 0.8rem;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.btn-sidebar-nav:hover { color: var(--accent-green); background: rgba(16,185,129,0.05); }
+.sidebar-footer { margin-top: auto; }
+
+/* ── Add Target Card ── */
+.manage-add-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--space-lg);
+}
+.manage-add-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.95rem; font-weight: 600; margin: 0 0 var(--space-md);
+  color: var(--text-primary);
+}
+.manage-add-form { display: flex; flex-direction: column; gap: var(--space-sm); }
+.manage-add-fields { display: flex; gap: var(--space-sm); align-items: flex-end; }
+.manage-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.manage-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.manage-input {
+  padding: 10px 14px; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 0.85rem; outline: none;
+  transition: border-color var(--transition-fast);
+}
+.manage-input:focus { border-color: var(--accent-green); }
+.manage-input::placeholder { color: var(--text-dim); }
+.btn-manage-add {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent-green); color: #fff;
+  font-family: var(--font-sans); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast); white-space: nowrap;
+}
+.btn-manage-add:hover { background: #059669; }
+.manage-hint { font-size: 0.72rem; color: var(--text-dim); margin: 8px 0 0; }
+
+/* ── Targets Table Card ── */
+.manage-table-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.manage-table-wrapper { overflow-x: auto; }
+.manage-table { width: 100%; border-collapse: collapse; }
+.manage-table thead th {
+  padding: 14px 18px; text-align: left;
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.manage-table tbody td {
+  padding: 14px 18px; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+.manage-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.manage-table .phone-mono { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); }
+.manage-table .status-active { color: var(--accent-green); font-weight: 600; font-size: 0.75rem; }
+.manage-table .status-paused { color: var(--text-dim); font-weight: 600; font-size: 0.75rem; }
+.manage-table .date-text { font-size: 0.75rem; color: var(--text-muted); }
+.manage-actions { display: flex; gap: 6px; }
+.manage-actions .btn-icon { width: 32px; height: 32px; }
+
+@media (max-width: 640px) {
+  .manage-add-fields { flex-direction: column; }
+  .manage-page { padding: var(--space-md); }
+}

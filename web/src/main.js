@@ -58,6 +58,11 @@ const targetsListEl = document.getElementById("targets-list");
 const addTargetForm = document.getElementById("add-target-form");
 const targetPhoneInput = document.getElementById("target-phone");
 const targetNameInput = document.getElementById("target-name");
+const managePage = document.getElementById("manage-page");
+const dashboardBody = document.querySelector(".dashboard-body");
+const navManageBtn = document.getElementById("nav-manage-btn");
+const navBackBtn = document.getElementById("nav-back-btn");
+const targetsCountEl = document.getElementById("targets-count");
 
 // ── State ───────────────────────────────────────────────
 let selectedDateFrom = new Date();
@@ -141,6 +146,10 @@ async function initDashboard() {
 
   // Target management form
   addTargetForm.addEventListener("submit", onAddTarget);
+
+  // Page navigation
+  navManageBtn.addEventListener("click", () => showPage("manage"));
+  navBackBtn.addEventListener("click", () => showPage("dashboard"));
 
   // Load targets and render management panel
   await loadTargets();
@@ -330,6 +339,17 @@ function formatDateForInput(date) {
 
 let managedTargets = [];
 
+function showPage(page) {
+  if (page === "manage") {
+    dashboardBody.style.display = "none";
+    managePage.style.display = "block";
+    loadTargets();
+  } else {
+    managePage.style.display = "none";
+    dashboardBody.style.display = "flex";
+  }
+}
+
 async function loadTargets() {
   managedTargets = await fetchTargets();
   renderTargetsList();
@@ -337,37 +357,42 @@ async function loadTargets() {
 
 function renderTargetsList() {
   targetsListEl.innerHTML = "";
+  targetsCountEl.textContent = managedTargets.length;
 
   if (managedTargets.length === 0) {
-    targetsListEl.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.75rem;">No targets configured</div>`;
+    targetsListEl.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-muted)">No targets configured yet. Add one above.</td></tr>`;
     return;
   }
 
   for (const target of managedTargets) {
-    const item = document.createElement("div");
-    item.className = `target-item${target.is_active ? "" : " target-inactive"}`;
-    item.innerHTML = `
-      <div class="target-info">
-        <span class="target-label">${target.display_name || "Unnamed"}</span>
-        <span class="target-phone">${target.phone_number}</span>
-      </div>
-      <div class="target-actions">
-        <button class="btn-icon" data-action="toggle" data-id="${target.id}" data-active="${target.is_active}" title="${target.is_active ? "Pause" : "Resume"}">
-          ${target.is_active
-            ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`
-            : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>`
-          }
-        </button>
-        <button class="btn-icon danger" data-action="delete" data-id="${target.id}" title="Remove">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/></svg>
-        </button>
-      </div>
+    const row = document.createElement("tr");
+    if (!target.is_active) row.style.opacity = "0.45";
+    const addedDate = new Date(target.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+    row.innerHTML = `
+      <td><strong>${target.display_name || "Unnamed"}</strong></td>
+      <td><span class="phone-mono">${target.phone_number}</span></td>
+      <td><span class="${target.is_active ? 'status-active' : 'status-paused'}">${target.is_active ? '● Active' : '⏸ Paused'}</span></td>
+      <td><span class="date-text">${addedDate}</span></td>
+      <td>
+        <div class="manage-actions">
+          <button class="btn-icon" data-action="toggle" data-id="${target.id}" data-active="${target.is_active}" title="${target.is_active ? 'Pause' : 'Resume'}">
+            ${target.is_active
+              ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`
+              : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>`
+            }
+          </button>
+          <button class="btn-icon danger" data-action="delete" data-id="${target.id}" title="Remove">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/></svg>
+          </button>
+        </div>
+      </td>
     `;
-    targetsListEl.appendChild(item);
+    targetsListEl.appendChild(row);
   }
 
-  // Attach event listeners
-  targetsListEl.addEventListener("click", async (e) => {
+  // Attach event listeners (use event delegation on tbody)
+  targetsListEl.onclick = async (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
 
@@ -384,7 +409,7 @@ function renderTargetsList() {
       await toggleTarget(id, !currentlyActive);
       await loadTargets();
     }
-  });
+  };
 }
 
 async function onAddTarget(e) {
