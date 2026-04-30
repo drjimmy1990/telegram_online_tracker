@@ -209,3 +209,72 @@ export async function fetchTrackedUsers() {
   }
   return unique;
 }
+
+// ═══════════════════════════════════════════════════════
+//  Target Management (tracked_targets table)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Fetch all targets from the tracked_targets table.
+ */
+export async function fetchTargets() {
+  const { data, error } = await supabase
+    .from("tracked_targets")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[API] fetchTargets error:", error);
+    return [];
+  }
+  return data || [];
+}
+
+/**
+ * Add a new target phone number.
+ */
+export async function addTarget(phoneNumber, displayName = "") {
+  const { data, error } = await supabase
+    .from("tracked_targets")
+    .insert({ phone_number: phoneNumber, display_name: displayName || null, is_active: true })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[API] addTarget error:", error);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * Remove a target by ID.
+ */
+export async function removeTarget(id) {
+  const { error } = await supabase
+    .from("tracked_targets")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("[API] removeTarget error:", error);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Toggle a target's active state.
+ */
+export async function toggleTarget(id, isActive) {
+  const { error } = await supabase
+    .from("tracked_targets")
+    .update({ is_active: isActive })
+    .eq("id", id);
+
+  if (error) {
+    console.error("[API] toggleTarget error:", error);
+    return false;
+  }
+  return true;
+}

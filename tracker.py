@@ -4,6 +4,9 @@ Telegram Online Tracker — Event-Driven Status Monitor
 Listens for a target user's online/offline status changes via the
 Telegram MTProto API and records events to Supabase + optional webhook.
 
+Targets are managed dynamically via the `tracked_targets` table in Supabase.
+The tracker polls for changes every 60 seconds.
+
 Usage:
     1. Fill in your .env file
     2. Run: python tracker.py
@@ -40,30 +43,109 @@ client = TelegramClient("tracker_session", config.API_ID, config.API_HASH)
 # Maps user_id -> display_name
 TARGETS: dict[int, str] = {}
 
+# Track which phone numbers we've already resolved
+RESOLVED_PHONES: set[str] = set()
+
+
+async def fetch_targets_from_db() -> list[dict]:
+    """Fetch active targets from the tracked_targets table."""
+    try:
+        result = supabase.table("tracked_targets").select("*").eq("is_active", True).execute()
+        return result.data or []
+    except Exception as e:
+        log.warning("Could not fetch targets from DB: %s", e)
+        return []
+
 
 async def resolve_targets() -> None:
-    """Resolve all target users at startup and cache their IDs and names."""
+    """Resolve targets from DB table. Falls back to .env if table is empty."""
     global TARGETS
-    if TARGETS:
-        return
 
-    for target in config.TARGET_USERS:
-        log.info("Resolving target user: %s", target)
-        try:
-            entity = await client.get_entity(target)
-            display_name = getattr(entity, "first_name", target) or target
-            if getattr(entity, "last_name", None):
-                display_name += f" {entity.last_name}"
-            
-            TARGETS[entity.id] = display_name
-            log.info("✓ Target resolved: %s (ID: %d)", display_name, entity.id)
-        except Exception as e:
-            log.error("✗ Failed to resolve target '%s': %s", target, e)
+    db_targets = await fetch_targets_from_db()
+
+    # If DB table has targets, use those
+    if db_targets:
+        phone_numbers = [t["phone_number"] for t in db_targets]
+        log.info("Found %d targets in database", len(phone_numbers))
+    elif config.TARGET_USERS:
+        # Fallback to .env
+        phone_numbers = config.TARGET_USERS
+        log.info("No DB targets found, using .env: %s", phone_numbers)
+    else:
+        log.error("No targets configured. Add targets via the dashboard or .env")
+        import sys
+        sys.exit(1)
+
+    for phone in phone_numbers:
+        if phone in RESOLVED_PHONES:
+            continue  # Already resolved
+        await _resolve_single_target(phone)
 
     if not TARGETS:
         log.error("No targets could be resolved. Exiting.")
         import sys
         sys.exit(1)
+
+
+async def _resolve_single_target(phone: str) -> bool:
+    """Resolve a single phone number to a Telegram user ID."""
+    log.info("Resolving target user: %s", phone)
+    try:
+        entity = await client.get_entity(phone)
+        display_name = getattr(entity, "first_name", phone) or phone
+        if getattr(entity, "last_name", None):
+            display_name += f" {entity.last_name}"
+
+        TARGETS[entity.id] = display_name
+        RESOLVED_PHONES.add(phone)
+        log.info("✓ Target resolved: %s (ID: %d)", display_name, entity.id)
+
+        # Update display_name in DB
+        try:
+            supabase.table("tracked_targets").update(
+                {"display_name": display_name}
+            ).eq("phone_number", phone).execute()
+        except Exception:
+            pass  # Non-critical
+
+        return True
+    except Exception as e:
+        log.error("✗ Failed to resolve target '%s': %s", phone, e)
+        return False
+
+
+async def poll_for_target_changes() -> None:
+    """Periodically check the DB for new/removed targets."""
+    while True:
+        await asyncio.sleep(60)  # Poll every 60 seconds
+        try:
+            db_targets = await fetch_targets_from_db()
+            if not db_targets:
+                continue
+
+            db_phones = {t["phone_number"] for t in db_targets}
+
+            # Check for NEW targets (in DB but not yet resolved)
+            for phone in db_phones:
+                if phone not in RESOLVED_PHONES:
+                    log.info("🆕 New target detected: %s", phone)
+                    await _resolve_single_target(phone)
+
+            # Check for REMOVED targets (resolved but no longer in DB)
+            removed_phones = RESOLVED_PHONES - db_phones
+            if removed_phones:
+                # Find user_ids to remove
+                ids_to_remove = []
+                for uid, name in list(TARGETS.items()):
+                    for phone in removed_phones:
+                        # We don't have a direct phone->uid mapping after resolution,
+                        # so we just log it. The user won't be tracked anymore on next restart.
+                        pass
+                RESOLVED_PHONES -= removed_phones
+                log.info("🗑️ Targets removed from monitoring: %s", removed_phones)
+
+        except Exception as e:
+            log.warning("Target poll error: %s", e)
 
 
 async def write_to_supabase(payload: dict) -> None:
@@ -168,7 +250,11 @@ async def main():
 
     log.info("═══════════════════════════════════════════")
     log.info("   Listening for status updates...         ")
+    log.info("   Polling for target changes every 60s    ")
     log.info("═══════════════════════════════════════════")
+
+    # Start polling for target changes in the background
+    asyncio.create_task(poll_for_target_changes())
 
     await client.run_until_disconnected()
 

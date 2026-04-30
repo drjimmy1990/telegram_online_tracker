@@ -661,3 +661,57 @@ body {
   background: var(--accent-green-soft);
   color: var(--accent-green);
 }
+
+/* ── Manage Targets ─────────────────────── */
+.sidebar-section {
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+.targets-list {
+  padding: var(--space-sm);
+  max-height: 200px;
+  overflow-y: auto;
+}
+.target-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  transition: background var(--transition-fast);
+}
+.target-item:hover { background: rgba(255,255,255,0.03); }
+.target-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.target-phone { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); }
+.target-label { font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.target-inactive { opacity: 0.4; }
+.target-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.btn-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.btn-icon:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+.btn-icon.danger:hover { color: var(--accent-red); background: var(--accent-red-soft); border-color: rgba(239,68,68,0.2); }
+.add-target-form {
+  display: flex; flex-direction: column; gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+.input-field-sm {
+  width: 100%; padding: 8px 12px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 0.8rem;
+  outline: none; transition: border-color var(--transition-fast);
+}
+.input-field-sm:focus { border-color: var(--accent-green); }
+.input-field-sm::placeholder { color: var(--text-dim); }
+.btn-add {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px; border: none; border-radius: var(--radius-sm);
+  background: var(--accent-green-soft); color: var(--accent-green);
+  font-family: var(--font-sans); font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.btn-add:hover { background: rgba(16,185,129,0.2); }

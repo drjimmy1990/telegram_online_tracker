@@ -13,6 +13,10 @@ import {
   fetchWeeklyData,
   subscribeToEvents,
   fetchTrackedUsers,
+  fetchTargets,
+  addTarget,
+  removeTarget,
+  toggleTarget,
 } from "./api.js";
 import { computeSessions, computeStats, computeHourlyActivity } from "./stats.js";
 import { renderTimeline, renderTimelineHours } from "./timeline.js";
@@ -50,6 +54,10 @@ const connectionBadge = document.getElementById("connection-status");
 const userListEl = document.getElementById("user-list");
 const userCountEl = document.getElementById("user-count");
 const statusFilterEl = document.getElementById("status-filter");
+const targetsListEl = document.getElementById("targets-list");
+const addTargetForm = document.getElementById("add-target-form");
+const targetPhoneInput = document.getElementById("target-phone");
+const targetNameInput = document.getElementById("target-name");
 
 // ── State ───────────────────────────────────────────────
 let selectedDateFrom = new Date();
@@ -130,6 +138,12 @@ async function initDashboard() {
     statusFilter = btn.dataset.filter;
     renderFilteredHistory();
   });
+
+  // Target management form
+  addTargetForm.addEventListener("submit", onAddTarget);
+
+  // Load targets and render management panel
+  await loadTargets();
 
   // Load users
   trackedUsers = await fetchTrackedUsers();
@@ -308,6 +322,86 @@ function formatDateForInput(date) {
   const m = (date.getMonth() + 1).toString().padStart(2, "0");
   const d = date.getDate().toString().padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TARGET MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+let managedTargets = [];
+
+async function loadTargets() {
+  managedTargets = await fetchTargets();
+  renderTargetsList();
+}
+
+function renderTargetsList() {
+  targetsListEl.innerHTML = "";
+
+  if (managedTargets.length === 0) {
+    targetsListEl.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.75rem;">No targets configured</div>`;
+    return;
+  }
+
+  for (const target of managedTargets) {
+    const item = document.createElement("div");
+    item.className = `target-item${target.is_active ? "" : " target-inactive"}`;
+    item.innerHTML = `
+      <div class="target-info">
+        <span class="target-label">${target.display_name || "Unnamed"}</span>
+        <span class="target-phone">${target.phone_number}</span>
+      </div>
+      <div class="target-actions">
+        <button class="btn-icon" data-action="toggle" data-id="${target.id}" data-active="${target.is_active}" title="${target.is_active ? "Pause" : "Resume"}">
+          ${target.is_active
+            ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`
+            : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>`
+          }
+        </button>
+        <button class="btn-icon danger" data-action="delete" data-id="${target.id}" title="Remove">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/></svg>
+        </button>
+      </div>
+    `;
+    targetsListEl.appendChild(item);
+  }
+
+  // Attach event listeners
+  targetsListEl.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const id = Number(btn.dataset.id);
+
+    if (action === "delete") {
+      if (confirm("Remove this target?")) {
+        await removeTarget(id);
+        await loadTargets();
+      }
+    } else if (action === "toggle") {
+      const currentlyActive = btn.dataset.active === "true";
+      await toggleTarget(id, !currentlyActive);
+      await loadTargets();
+    }
+  });
+}
+
+async function onAddTarget(e) {
+  e.preventDefault();
+  const phone = targetPhoneInput.value.trim();
+  const name = targetNameInput.value.trim();
+
+  if (!phone) return;
+
+  const result = await addTarget(phone, name);
+  if (result) {
+    targetPhoneInput.value = "";
+    targetNameInput.value = "";
+    await loadTargets();
+  } else {
+    alert("Failed to add target. Make sure the number is in international format (e.g. +201234567890) and not a duplicate.");
+  }
 }
 
 // ═══════════════════════════════════════════════════════
