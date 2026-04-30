@@ -1,0 +1,15 @@
+services:
+  tracker:
+    build: .
+    container_name: telegram-tracker
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persist the session file so it survives container rebuilds
+      - ./tracker_session.session:/app/tracker_session.session
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

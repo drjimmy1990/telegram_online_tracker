@@ -1,0 +1,30 @@
+# ── Python ──────────────────────
+__pycache__/
+*.py[cod]
+*.session
+*.egg-info/
+venv/
+.venv/
+
+# ── Environment ─────────────────
+.env
+
+# ── Node / Vite ─────────────────
+node_modules/
+web/node_modules/
+web/dist/
+web/.env
+
+# ── Docker ──────────────────────
+*.log
+
+# ── OS ──────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ─────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
