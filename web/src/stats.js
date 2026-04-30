@@ -114,11 +114,18 @@ export function computeHourlyActivity(sessions) {
 }
 
 /**
- * Compute duration between two consecutive events.
+ * Compute duration for an event.
+ * - Online events:  how long they stayed/have been online
+ *     → gap from this Online to the next event, or "still online" = now - this
+ * - Offline events: how long they stayed/have been offline
+ *     → gap from this Offline to the next event, or "still offline" = now - this
  */
 export function computeEventDuration(event, nextEvent) {
-  if (!nextEvent) return null;
   const start = new Date(event.created_at);
+  if (!nextEvent) {
+    // Latest event — still in this state right now
+    return Date.now() - start.getTime();
+  }
   const end = new Date(nextEvent.created_at);
   return Math.abs(end - start);
 }

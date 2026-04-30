@@ -226,19 +226,11 @@ export function renderHistory(tbody, events, allEvents = null) {
   }
 
   // If allEvents provided, use it to find duration (for filtered views)
-  const lookup = allEvents || events;
+  const fullList = allEvents || events;
 
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
-    // Find this event in the full list and get the one that came AFTER it chronologically
-    let nextChronological = null;
-    if (allEvents) {
-      const idx = allEvents.findIndex((e) => e.id === ev.id);
-      if (idx > 0) nextChronological = allEvents[idx - 1];
-    } else {
-      nextChronological = events[i - 1] || null;
-    }
-    const row = createEventRow(ev, nextChronological);
+    const row = createEventRow(ev, fullList);
     tbody.appendChild(row);
   }
 }
@@ -255,15 +247,39 @@ function getStatusClass(status) {
   }
 }
 
-function createEventRow(event, nextEvent) {
+function createEventRow(event, fullList) {
   const row = document.createElement("tr");
   const isOnline = event.status === "Online";
+  const isOffline = event.status === "Offline";
   const isPrivacy = ["Recently", "Last Week", "Last Month", "Hidden"].includes(event.status);
   const time = new Date(event.created_at);
-  const durationMs = isPrivacy ? null : computeEventDuration(event, nextEvent);
   const displayName = event.display_name || event.user_id || "Unknown";
   const initial = getInitial(displayName.toString());
   const statusClass = getStatusClass(event.status);
+
+  // Compute duration: find the matching "end" event in the full list (DESC order)
+  // For an Online event  → find the next Offline/non-Online event (= session end)
+  // For an Offline event → find the next Online event (= how long they were away)
+  let durationMs = null;
+  if (!isPrivacy) {
+    const idx = fullList.findIndex((e) => e.id === event.id);
+    if (idx >= 0) {
+      // Scan toward NEWER events (lower indices in DESC list)
+      let endEvent = null;
+      for (let j = idx - 1; j >= 0; j--) {
+        const candidate = fullList[j];
+        if (isOnline && candidate.status !== "Online") {
+          endEvent = candidate;
+          break;
+        }
+        if (isOffline && candidate.status !== "Offline") {
+          endEvent = candidate;
+          break;
+        }
+      }
+      durationMs = computeEventDuration(event, endEvent);
+    }
+  }
 
   row.innerHTML = `
     <td>
@@ -286,7 +302,9 @@ function createEventRow(event, nextEvent) {
 }
 
 export function prependEventRow(tbody, event, existingFirst) {
-  const row = createEventRow(event, existingFirst);
+  // Build a mini-list: [newEvent, previousFirst] so duration can be computed
+  const miniList = existingFirst ? [event, existingFirst] : [event];
+  const row = createEventRow(event, miniList);
   row.classList.add("event-flash");
 
   const emptyRow = tbody.querySelector(".empty-row");
