@@ -29,7 +29,7 @@ SSH into your VPS and clone or upload the project:
 
 ```bash
 cd /www/wwwroot
-git clone <your-repo-url> tele
+git clone https://github.com/drjimmy1990/telegram_online_tracker.git tele
 # OR upload the folder via aaPanel File Manager
 ```
 
@@ -162,6 +162,31 @@ Click **Save** and **Restart Nginx**.
 - [ ] `https://tracker.yourdomain.com` shows the login screen
 - [ ] Password `tele2026` unlocks the dashboard
 - [ ] Events appear in the dashboard when tracked users go online/offline
+
+---
+
+## Updating the Application
+
+When new features are pushed to GitHub, follow these steps to update your VPS:
+
+1. **Pull the latest code:**
+   ```bash
+   cd /www/wwwroot/tele
+   git pull origin main
+   ```
+
+2. **Update the Tracker (Backend):**
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. **Update the Dashboard (Frontend):**
+   ```bash
+   cd web
+   npm install
+   npm run build
+   ```
+   *(No need to restart Nginx, it automatically serves the new files from `web/dist`)*
 
 ---
 
