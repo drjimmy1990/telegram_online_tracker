@@ -291,6 +291,9 @@ async def get_messages(target: str, limit: int = 50, search: str = None, downloa
                         # Convert local path to API URL
                         filename = os.path.basename(file_path)
                         media_url = f"/api/v1/media/{filename}"
+                    else:
+                        # Failed to download (e.g. WebPage preview), don't return 'has_media'
+                        media_url = None
 
             messages.append({
                 "id": msg.id,
