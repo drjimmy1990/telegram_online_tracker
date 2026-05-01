@@ -54,6 +54,11 @@
                 </div>
             </div>
             <div class="header-center">
+                <div class="quick-dates" id="quick-dates">
+                    <button class="quick-date-btn active" data-range="today">Today</button>
+                    <button class="quick-date-btn" data-range="yesterday">Yesterday</button>
+                    <button class="quick-date-btn" data-range="week">This Week</button>
+                </div>
                 <div class="date-range-group">
                     <label class="filter-label">From</label>
                     <input type="date" id="date-from" class="date-input" />
@@ -66,11 +71,32 @@
                     <span class="connection-dot"></span>
                     <span class="connection-text">Connecting…</span>
                 </div>
+                <!-- Mobile filter toggle -->
+                <button id="mobile-filter-toggle" class="btn-ghost mobile-only" title="Filters">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+                </button>
                 <button id="logout-btn" class="btn-ghost" title="Logout">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
                 </button>
             </div>
         </header>
+
+        <!-- Mobile filter bar (hidden by default) -->
+        <div id="mobile-filter-bar" class="mobile-filter-bar" style="display:none">
+            <div class="mobile-filter-inner">
+                <div class="quick-dates" id="quick-dates-mobile">
+                    <button class="quick-date-btn active" data-range="today">Today</button>
+                    <button class="quick-date-btn" data-range="yesterday">Yesterday</button>
+                    <button class="quick-date-btn" data-range="week">This Week</button>
+                </div>
+                <div class="date-range-group">
+                    <label class="filter-label">From</label>
+                    <input type="date" id="date-from-mobile" class="date-input" />
+                    <label class="filter-label">To</label>
+                    <input type="date" id="date-to-mobile" class="date-input" />
+                </div>
+            </div>
+        </div>
 
         <!-- ── Body: Sidebar + Main ── -->
         <div class="dashboard-body">
@@ -91,6 +117,10 @@
                     <button id="nav-manage-btn" class="btn-sidebar-nav" title="Manage Targets">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                         Manage Targets
+                    </button>
+                    <button id="nav-api-docs-btn" class="btn-sidebar-nav" title="API Documentation">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+                        API Docs
                     </button>
                 </div>
             </aside>
@@ -128,7 +158,7 @@
                     <div class="panel-header">
                         <h2 class="panel-title">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-                            Today's Timeline
+                            <span id="timeline-date-label">Today's</span> Timeline
                         </h2>
                         <div class="legend">
                             <span class="legend-item"><span class="legend-dot online"></span>Online</span>
@@ -249,6 +279,172 @@
                                 <tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-muted)">Loading targets…</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════ API DOCS PAGE ═══════════ -->
+        <div id="api-docs-page" class="api-docs-page" style="display:none">
+            <div class="api-docs-container">
+                <div class="manage-header">
+                    <div class="manage-header-left">
+                        <button id="nav-back-api-btn" class="btn-back" title="Back to Dashboard">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12,19 5,12 12,5"/></svg>
+                        </button>
+                        <div>
+                            <h1 class="manage-title">API Documentation</h1>
+                            <p class="manage-subtitle">Telegram Scraper REST API — Endpoints & Examples</p>
+                        </div>
+                    </div>
+                    <span class="badge manage-badge api-badge">v1</span>
+                </div>
+
+                <!-- Auth Section -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-card-icon">🔐</span>
+                        <h3>Authentication</h3>
+                    </div>
+                    <p class="api-card-desc">Every request must include your API key in the request headers.</p>
+                    <div class="api-param-row">
+                        <span class="api-param-key">Header</span>
+                        <code class="api-code-inline">x-api-key</code>
+                    </div>
+                    <div class="api-param-row">
+                        <span class="api-param-key">Value</span>
+                        <span class="api-param-val">The <code>API_KEY</code> value from your <code>.env</code> file</span>
+                    </div>
+                </div>
+
+                <!-- Endpoint: Get Messages -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method-badge get">GET</span>
+                        <h3>/api/v1/messages</h3>
+                    </div>
+                    <p class="api-card-desc">Fetch recent messages from any Telegram channel, group, or user you have access to.</p>
+                    
+                    <h4 class="api-section-title">Parameters</h4>
+                    <div class="api-params-table">
+                        <div class="api-param-header">
+                            <span>Name</span><span>Type</span><span>Default</span><span>Description</span>
+                        </div>
+                        <div class="api-param-row-full">
+                            <span><code>target</code> <span class="api-required">required</span></span>
+                            <span>string</span>
+                            <span>—</span>
+                            <span>Username, invite link, or ID (e.g. <code>BinanceWaves</code>)</span>
+                        </div>
+                        <div class="api-param-row-full">
+                            <span><code>limit</code></span>
+                            <span>integer</span>
+                            <span>50</span>
+                            <span>Max number of messages to return</span>
+                        </div>
+                        <div class="api-param-row-full">
+                            <span><code>search</code></span>
+                            <span>string</span>
+                            <span>—</span>
+                            <span>Filter messages by keyword</span>
+                        </div>
+                        <div class="api-param-row-full">
+                            <span><code>download_media</code></span>
+                            <span>boolean</span>
+                            <span>false</span>
+                            <span>If <code>true</code>, downloads photos/videos and returns URL</span>
+                        </div>
+                    </div>
+
+                    <h4 class="api-section-title">Example — cURL</h4>
+                    <div class="api-code-block">
+                        <div class="api-code-header">
+                            <span>bash</span>
+                            <button class="api-copy-btn" data-target="curl-basic" title="Copy">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            </button>
+                        </div>
+                        <pre id="curl-basic"><code>curl -X GET "https://your-domain.com/api/v1/messages?target=BinanceWaves&limit=5" \
+     -H "x-api-key: YOUR_API_KEY"</code></pre>
+                    </div>
+
+                    <h4 class="api-section-title">Example — Search with Media</h4>
+                    <div class="api-code-block">
+                        <div class="api-code-header">
+                            <span>bash</span>
+                            <button class="api-copy-btn" data-target="curl-search" title="Copy">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            </button>
+                        </div>
+                        <pre id="curl-search"><code>curl -X GET "https://your-domain.com/api/v1/messages?target=MyChannel&search=Bitcoin&download_media=true" \
+     -H "x-api-key: YOUR_API_KEY"</code></pre>
+                    </div>
+
+                    <h4 class="api-section-title">Response</h4>
+                    <div class="api-code-block">
+                        <div class="api-code-header"><span>json</span></div>
+                        <pre><code>{
+  "target": "BinanceWaves",
+  "count": 2,
+  "messages": [
+    {
+      "id": 14502,
+      "text": "Bitcoin has reached a new all-time high!",
+      "date": "2026-04-30T10:15:00+00:00",
+      "sender_id": 123456789,
+      "views": 45000,
+      "media": null
+    },
+    {
+      "id": 14501,
+      "text": "Trading pairs for $XYZ listed tomorrow.",
+      "date": "2026-04-30T09:30:00+00:00",
+      "sender_id": 123456789,
+      "views": 41200,
+      "media": "/api/v1/media/photo_14501.jpg"
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- N8N Integration -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-card-icon">🚀</span>
+                        <h3>N8N Integration</h3>
+                    </div>
+                    <p class="api-card-desc">Use the HTTP Request node in N8N with these settings:</p>
+                    <ol class="api-steps">
+                        <li><strong>Method:</strong> <code>GET</code></li>
+                        <li><strong>URL:</strong> <code>https://your-domain.com/api/v1/messages</code></li>
+                        <li><strong>Query Params:</strong> <code>target</code> = your channel, <code>limit</code> = 10</li>
+                        <li><strong>Headers:</strong> <code>x-api-key</code> = your secret key</li>
+                    </ol>
+                    <h4 class="api-section-title">Use Cases</h4>
+                    <div class="api-use-cases">
+                        <div class="api-use-case">
+                            <span class="api-use-icon">📨</span>
+                            <div>
+                                <strong>Auto-Forwarder</strong>
+                                <p>Fetch latest message every minute. If new, forward to your group via Telegram Bot.</p>
+                            </div>
+                        </div>
+                        <div class="api-use-case">
+                            <span class="api-use-icon">🔔</span>
+                            <div>
+                                <strong>Keyword Alerts</strong>
+                                <p>Search for keywords like "discount". If found, send alert via email or WhatsApp.</p>
+                            </div>
+                        </div>
+                        <div class="api-use-case">
+                            <span class="api-use-icon">📊</span>
+                            <div>
+                                <strong>Content Scraper</strong>
+                                <p>Scrape messages on schedule and save to Google Sheets or a database.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

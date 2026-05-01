@@ -17,6 +17,7 @@ import {
   addTarget,
   removeTarget,
   toggleTarget,
+  deleteUserEvents,
 } from "./api.js";
 import { computeSessions, computeStats, computeHourlyActivity, formatDuration } from "./stats.js";
 import { renderTimeline, renderTimelineHours } from "./timeline.js";
@@ -28,7 +29,6 @@ import {
   updateStats,
   renderHeatmap,
   renderHistory,
-  prependEventRow,
   updateConnectionStatus,
 } from "./components.js";
 
@@ -63,6 +63,18 @@ const dashboardBody = document.querySelector(".dashboard-body");
 const navManageBtn = document.getElementById("nav-manage-btn");
 const navBackBtn = document.getElementById("nav-back-btn");
 const targetsCountEl = document.getElementById("targets-count");
+const timelineDateLabel = document.getElementById("timeline-date-label");
+
+// New DOM elements
+const quickDatesEl = document.getElementById("quick-dates");
+const quickDatesMobileEl = document.getElementById("quick-dates-mobile");
+const mobileFilterToggle = document.getElementById("mobile-filter-toggle");
+const mobileFilterBar = document.getElementById("mobile-filter-bar");
+const dateFromMobile = document.getElementById("date-from-mobile");
+const dateToMobile = document.getElementById("date-to-mobile");
+const apiDocsPage = document.getElementById("api-docs-page");
+const navApiDocsBtn = document.getElementById("nav-api-docs-btn");
+const navBackApiBtn = document.getElementById("nav-back-api-btn");
 
 // ── State ───────────────────────────────────────────────
 let selectedDateFrom = new Date();
@@ -73,6 +85,7 @@ let currentEvents = [];
 let recentEvents = [];
 let trackedUsers = [];
 let statusMap = {}; // { user_id: { status, last_seen } }
+let mobileFilterOpen = false;
 
 // ═══════════════════════════════════════════════════════
 //  AUTH
@@ -131,8 +144,12 @@ async function initDashboard() {
   const today = formatDateForInput(new Date());
   dateFromInput.value = today;
   dateToInput.value = today;
+  if (dateFromMobile) dateFromMobile.value = today;
+  if (dateToMobile) dateToMobile.value = today;
   dateFromInput.addEventListener("change", onDateChange);
   dateToInput.addEventListener("change", onDateChange);
+  if (dateFromMobile) dateFromMobile.addEventListener("change", onMobileDateChange);
+  if (dateToMobile) dateToMobile.addEventListener("change", onMobileDateChange);
 
   // Status filter toggle
   statusFilterEl.addEventListener("click", (e) => {
@@ -155,12 +172,41 @@ async function initDashboard() {
     });
   }, 1000);
 
+  // Quick date presets
+  setupQuickDates(quickDatesEl);
+  setupQuickDates(quickDatesMobileEl);
+
+  // Mobile filter toggle
+  if (mobileFilterToggle) {
+    mobileFilterToggle.addEventListener("click", () => {
+      mobileFilterOpen = !mobileFilterOpen;
+      mobileFilterBar.style.display = mobileFilterOpen ? "block" : "none";
+    });
+  }
+
   // Target management form
   addTargetForm.addEventListener("submit", onAddTarget);
 
   // Page navigation
   navManageBtn.addEventListener("click", () => showPage("manage"));
   navBackBtn.addEventListener("click", () => showPage("dashboard"));
+  if (navApiDocsBtn) navApiDocsBtn.addEventListener("click", () => showPage("api-docs"));
+  if (navBackApiBtn) navBackApiBtn.addEventListener("click", () => showPage("dashboard"));
+
+  // Copy buttons in API docs
+  document.querySelectorAll(".api-copy-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.dataset.target;
+      const codeEl = document.getElementById(targetId);
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent.trim());
+        btn.innerHTML = "✓";
+        setTimeout(() => {
+          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+        }, 1500);
+      }
+    });
+  });
 
   // Load targets and render management panel
   await loadTargets();
@@ -196,11 +242,62 @@ async function initDashboard() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  QUICK DATE PRESETS
+// ═══════════════════════════════════════════════════════
+
+function setupQuickDates(container) {
+  if (!container) return;
+  container.addEventListener("click", (e) => {
+    const btn = e.target.closest(".quick-date-btn");
+    if (!btn) return;
+
+    // Update active state on BOTH desktop and mobile groups
+    [quickDatesEl, quickDatesMobileEl].forEach((group) => {
+      if (!group) return;
+      group.querySelectorAll(".quick-date-btn").forEach((b) => b.classList.remove("active"));
+      const match = group.querySelector(`[data-range="${btn.dataset.range}"]`);
+      if (match) match.classList.add("active");
+    });
+
+    const now = new Date();
+    let from, to;
+
+    switch (btn.dataset.range) {
+      case "today":
+        from = to = now;
+        break;
+      case "yesterday":
+        from = to = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        break;
+      case "week":
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+        to = now;
+        break;
+      default:
+        return;
+    }
+
+    const fromStr = formatDateForInput(from);
+    const toStr = formatDateForInput(to);
+
+    dateFromInput.value = fromStr;
+    dateToInput.value = toStr;
+    if (dateFromMobile) dateFromMobile.value = fromStr;
+    if (dateToMobile) dateToMobile.value = toStr;
+
+    selectedDateFrom = new Date(fromStr + "T00:00:00");
+    selectedDateTo = new Date(toStr + "T00:00:00");
+    updateTimelineLabel();
+    loadDayData();
+  });
+}
+
+// ═══════════════════════════════════════════════════════
 //  SIDEBAR
 // ═══════════════════════════════════════════════════════
 
 function renderSidebar() {
-  renderUserCards(userListEl, trackedUsers, selectedUserId, statusMap, onUserSelect);
+  renderUserCards(userListEl, trackedUsers, selectedUserId, statusMap, onUserSelect, onUserDelete);
 }
 
 function onUserSelect(userId) {
@@ -208,6 +305,30 @@ function onUserSelect(userId) {
   renderSidebar();
   loadAllData();
   loadWeeklyChart();
+}
+
+async function onUserDelete(userId, displayName) {
+  if (!confirm(`Permanently delete ALL data for "${displayName}"?\n\nThis cannot be undone.`)) return;
+
+  const ok = await deleteUserEvents(userId);
+  if (!ok) {
+    alert("Failed to delete user data. Check the console for errors.");
+    return;
+  }
+
+  // Remove from local state
+  trackedUsers = trackedUsers.filter((u) => u.user_id !== userId);
+  delete statusMap[userId];
+  userCountEl.textContent = trackedUsers.length;
+
+  // Reset selection if deleted user was selected
+  if (selectedUserId === userId) {
+    selectedUserId = null;
+  }
+
+  renderSidebar();
+  await loadAllData();
+  await loadWeeklyChart();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -275,7 +396,51 @@ function onDateChange() {
     dateToInput.value = dateFromInput.value;
   }
 
+  // Sync mobile inputs
+  if (dateFromMobile) dateFromMobile.value = dateFromInput.value;
+  if (dateToMobile) dateToMobile.value = dateToInput.value;
+
+  // Clear quick-date active state (user manually picked a date)
+  clearQuickDateActive();
+  updateTimelineLabel();
   loadDayData();
+}
+
+function onMobileDateChange() {
+  dateFromInput.value = dateFromMobile.value;
+  dateToInput.value = dateToMobile.value;
+  onDateChange();
+}
+
+function clearQuickDateActive() {
+  [quickDatesEl, quickDatesMobileEl].forEach((group) => {
+    if (!group) return;
+    group.querySelectorAll(".quick-date-btn").forEach((b) => b.classList.remove("active"));
+  });
+}
+
+function updateTimelineLabel() {
+  if (!timelineDateLabel) return;
+  const now = new Date();
+  const isToday = isSameDay(selectedDateFrom, now) && isSameDay(selectedDateTo, now);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const isYesterday = isSameDay(selectedDateFrom, yesterday) && isSameDay(selectedDateTo, yesterday);
+
+  if (isToday) {
+    timelineDateLabel.textContent = "Today's";
+  } else if (isYesterday) {
+    timelineDateLabel.textContent = "Yesterday's";
+  } else if (isSameDay(selectedDateFrom, selectedDateTo)) {
+    timelineDateLabel.textContent = selectedDateFrom.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  } else {
+    const f = selectedDateFrom.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const t = selectedDateTo.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    timelineDateLabel.textContent = `${f} – ${t}`;
+  }
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -344,21 +509,30 @@ function formatDateForInput(date) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  PAGE NAVIGATION
+// ═══════════════════════════════════════════════════════
+
+function showPage(page) {
+  // Hide all pages
+  dashboardBody.style.display = "none";
+  managePage.style.display = "none";
+  if (apiDocsPage) apiDocsPage.style.display = "none";
+
+  if (page === "manage") {
+    managePage.style.display = "block";
+    loadTargets();
+  } else if (page === "api-docs") {
+    apiDocsPage.style.display = "block";
+  } else {
+    dashboardBody.style.display = "flex";
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 //  TARGET MANAGEMENT
 // ═══════════════════════════════════════════════════════
 
 let managedTargets = [];
-
-function showPage(page) {
-  if (page === "manage") {
-    dashboardBody.style.display = "none";
-    managePage.style.display = "block";
-    loadTargets();
-  } else {
-    managePage.style.display = "none";
-    dashboardBody.style.display = "flex";
-  }
-}
 
 async function loadTargets() {
   managedTargets = await fetchTargets();

@@ -278,3 +278,19 @@ export async function toggleTarget(id, isActive) {
   }
   return true;
 }
+
+/**
+ * Delete all status events for a specific user (permanently).
+ */
+export async function deleteUserEvents(userId) {
+  const { error } = await supabase
+    .from("status_events")
+    .delete()
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("[API] deleteUserEvents error:", error);
+    return false;
+  }
+  return true;
+}

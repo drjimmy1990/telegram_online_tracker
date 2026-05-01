@@ -32,7 +32,7 @@ function getInitial(name) {
  * @param {object} statusMap — { user_id: { status, last_seen } }
  * @param {function} onSelect — callback(userId)
  */
-export function renderUserCards(container, users, activeUserId, statusMap, onSelect) {
+export function renderUserCards(container, users, activeUserId, statusMap, onSelect, onDelete) {
   container.innerHTML = "";
 
   if (users.length === 0) {
@@ -59,7 +59,25 @@ export function renderUserCards(container, users, activeUserId, statusMap, onSel
   users.forEach((user, i) => {
     const info = statusMap[user.user_id] || {};
     const card = createUserCardEl(user, i + 1, user.user_id === activeUserId, info, false);
-    card.addEventListener("click", () => onSelect(user.user_id));
+    card.addEventListener("click", (e) => {
+      // Don't select if clicking the delete button
+      if (e.target.closest(".user-card-delete")) return;
+      onSelect(user.user_id);
+    });
+
+    // Add delete button
+    if (onDelete) {
+      const delBtn = document.createElement("button");
+      delBtn.className = "user-card-delete";
+      delBtn.title = "Remove user data";
+      delBtn.innerHTML = "✕";
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onDelete(user.user_id, user.display_name || user.user_id);
+      });
+      card.appendChild(delBtn);
+    }
+
     container.appendChild(card);
   });
 }
