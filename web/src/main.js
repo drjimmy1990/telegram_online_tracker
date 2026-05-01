@@ -87,6 +87,21 @@ let trackedUsers = [];
 let statusMap = {}; // { user_id: { status, last_seen } }
 let mobileFilterOpen = false;
 
+// Hidden users (persisted in localStorage so deleted users stay hidden after refresh)
+function getHiddenUsers() {
+  try { return JSON.parse(localStorage.getItem("tt_hidden_users") || "[]"); } catch { return []; }
+}
+function addHiddenUser(userId) {
+  const list = getHiddenUsers();
+  if (!list.includes(String(userId))) {
+    list.push(String(userId));
+    localStorage.setItem("tt_hidden_users", JSON.stringify(list));
+  }
+}
+function isUserHidden(userId) {
+  return getHiddenUsers().includes(String(userId));
+}
+
 // ═══════════════════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════════════════
@@ -211,8 +226,9 @@ async function initDashboard() {
   // Load targets and render management panel
   await loadTargets();
 
-  // Load users
-  trackedUsers = await fetchTrackedUsers();
+  // Load users (filter out hidden ones)
+  const allUsers = await fetchTrackedUsers();
+  trackedUsers = allUsers.filter((u) => !isUserHidden(u.user_id));
   userCountEl.textContent = trackedUsers.length;
 
   // Get all user statuses
@@ -308,13 +324,13 @@ function onUserSelect(userId) {
 }
 
 async function onUserDelete(userId, displayName) {
-  if (!confirm(`Permanently delete ALL data for "${displayName}"?\n\nThis cannot be undone.`)) return;
+  if (!confirm(`Remove "${displayName}" from the dashboard?\n\nTheir historical data will be deleted and they will be hidden from the sidebar.`)) return;
 
-  const ok = await deleteUserEvents(userId);
-  if (!ok) {
-    alert("Failed to delete user data. Check the console for errors.");
-    return;
-  }
+  // Add to persistent hidden list FIRST (so even if DB delete fails, they stay hidden)
+  addHiddenUser(userId);
+
+  // Try to delete their events from the DB (best-effort)
+  await deleteUserEvents(userId);
 
   // Remove from local state
   trackedUsers = trackedUsers.filter((u) => u.user_id !== userId);
@@ -449,9 +465,10 @@ function isSameDay(a, b) {
 
 function setupRealtime() {
   subscribeToEvents((newEvent) => {
-    console.log("[Realtime] New event:", newEvent);
+    // Skip events from hidden/deleted users
+    if (isUserHidden(newEvent.user_id)) return;
 
-    // Update sidebar status dot for this user
+    console.log("[Realtime] New event:", newEvent);
     updateUserCardStatus(userListEl, newEvent.user_id, newEvent.status);
 
     // Update statusMap
