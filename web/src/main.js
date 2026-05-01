@@ -252,7 +252,7 @@ async function initDashboard() {
   window.addEventListener("resize", () => {
     if (currentEvents.length > 0) {
       const sessions = computeSessions(currentEvents);
-      renderTimeline(timelineCanvas, sessions, selectedDateFrom);
+      renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
     }
   });
 }
@@ -393,7 +393,7 @@ function renderDayView(events) {
   const hourly = computeHourlyActivity(sessions);
 
   updateStats(stats);
-  renderTimeline(timelineCanvas, sessions, selectedDateFrom);
+  renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
   renderHeatmap(heatmapContainer, hourly);
   renderActivityChart(activityCanvas, hourly);
 }
