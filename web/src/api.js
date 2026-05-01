@@ -143,7 +143,9 @@ export async function fetchWeeklyData(days = 7, userId = null) {
     let onlineStart = null;
     for (const ev of events) {
       if (ev.status === "Online") {
-        onlineStart = new Date(ev.created_at);
+        if (!onlineStart) {
+          onlineStart = new Date(ev.created_at);
+        }
       } else if (ev.status === "Offline" && onlineStart) {
         totalMs += new Date(ev.created_at) - onlineStart;
         onlineStart = null;

@@ -33,7 +33,12 @@ export function computeSessions(events) {
 
   for (const ev of events) {
     if (ev.status === "Online") {
-      onlineStart = new Date(ev.created_at);
+      // Only set start if not already in an online session.
+      // Telegram sends multiple Online pings during a single session;
+      // we want the FIRST one as the true session start.
+      if (!onlineStart) {
+        onlineStart = new Date(ev.created_at);
+      }
     } else if (ev.status === "Offline" && onlineStart) {
       const end = new Date(ev.created_at);
       sessions.push({
