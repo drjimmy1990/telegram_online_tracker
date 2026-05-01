@@ -252,7 +252,8 @@ async function initDashboard() {
   window.addEventListener("resize", () => {
     if (currentEvents.length > 0) {
       const sessions = computeSessions(currentEvents);
-      renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
+      const labelOffset = renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
+      timelineHours.style.paddingLeft = labelOffset ? `${labelOffset}px` : "0";
     }
   });
 
@@ -431,7 +432,8 @@ function renderDayView(events) {
   const hourly = computeHourlyActivity(sessions);
 
   updateStats(stats);
-  renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
+  const labelOffset = renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
+  timelineHours.style.paddingLeft = labelOffset ? `${labelOffset}px` : "0";
   renderHeatmap(heatmapContainer, hourly);
   renderActivityChart(activityCanvas, hourly);
 }

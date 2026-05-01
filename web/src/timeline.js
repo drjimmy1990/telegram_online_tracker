@@ -37,8 +37,10 @@ export function renderTimeline(canvas, sessions, dateFrom, dateTo) {
 
   if (dayCount <= 1) {
     renderSingleDay(canvas, ctx, dpr, rect, sessions, from);
+    return 0; // no label offset
   } else {
     renderMultiDay(canvas, ctx, dpr, rect, sessions, from, dayCount);
+    return 52; // labelWidth offset in px
   }
 }
 
@@ -137,10 +139,10 @@ function renderMultiDay(canvas, ctx, dpr, rect, sessions, startDate, dayCount) {
     roundRect(ctx, labelWidth, barY, barAreaWidth, barH, 4);
     ctx.fill();
 
-    // Grid lines every 6 hours
+    // Grid lines every 3 hours (matches hour labels below)
     ctx.strokeStyle = COLORS.gridLine;
     ctx.lineWidth = 1;
-    for (let h = 0; h <= 24; h += 6) {
+    for (let h = 0; h <= 24; h += 3) {
       const x = labelWidth + (h / 24) * barAreaWidth;
       ctx.beginPath();
       ctx.moveTo(x, barY);
