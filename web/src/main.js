@@ -255,6 +255,17 @@ async function initDashboard() {
       renderTimeline(timelineCanvas, sessions, selectedDateFrom, selectedDateTo);
     }
   });
+
+  // Infinite scroll on history table
+  const historyWrapper = document.querySelector(".history-table-wrapper");
+  if (historyWrapper) {
+    historyWrapper.addEventListener("scroll", () => {
+      const { scrollTop, scrollHeight, clientHeight } = historyWrapper;
+      if (scrollTop + clientHeight >= scrollHeight - 100 && historyHasMore && !historyLoading) {
+        loadHistoryData(false);
+      }
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -351,8 +362,13 @@ async function onUserDelete(userId, displayName) {
 //  DATA LOADING
 // ═══════════════════════════════════════════════════════
 
+const HISTORY_PAGE_SIZE = 50;
+let historyOffset = 0;
+let historyHasMore = true;
+let historyLoading = false;
+
 async function loadAllData() {
-  await Promise.all([loadDayData(), loadHistoryData()]);
+  await Promise.all([loadDayData(), loadHistoryData(true)]);
 }
 
 async function loadDayData() {
@@ -364,18 +380,40 @@ async function loadDayData() {
   renderDayView(currentEvents);
 }
 
-async function loadHistoryData() {
-  recentEvents = await fetchRecentEvents(200, selectedUserId);
-  renderFilteredHistory();
+async function loadHistoryData(reset = false) {
+  if (reset) {
+    historyOffset = 0;
+    historyHasMore = true;
+    recentEvents = [];
+  }
+  if (!historyHasMore || historyLoading) return;
+
+  historyLoading = true;
+  const batch = await fetchRecentEvents(
+    HISTORY_PAGE_SIZE,
+    selectedUserId,
+    selectedDateFrom,
+    selectedDateTo,
+    historyOffset
+  );
+  historyLoading = false;
+
+  if (batch.length < HISTORY_PAGE_SIZE) {
+    historyHasMore = false;
+  }
+
+  recentEvents = reset ? batch : [...recentEvents, ...batch];
+  historyOffset += batch.length;
+  renderFilteredHistory(reset);
 }
 
-function renderFilteredHistory() {
+function renderFilteredHistory(fullReplace = true) {
   const filtered = statusFilter === "online"
     ? recentEvents.filter((e) => e.status === "Online")
     : recentEvents;
   // Pass full list as allEvents so durations are computed correctly in filtered view
   renderHistory(historyBody, filtered, statusFilter === "online" ? recentEvents : null);
-  eventCountEl.textContent = `${filtered.length} events`;
+  eventCountEl.textContent = `${filtered.length} events${historyHasMore ? "+" : ""}`;
 }
 
 async function loadWeeklyChart() {

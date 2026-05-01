@@ -326,7 +326,7 @@ function createEventRow(event, fullList) {
         <span class="user-cell-name">${displayName}</span>
       </div>
     </td>
-    <td><span class="time-text">${formatTime(time)}</span></td>
+    <td><span class="time-text">${formatDateTime(time)}</span></td>
     <td>${durationHtml}</td>
     <td><span class="last-seen-text">${event.was_last_seen ? formatTime(new Date(event.was_last_seen)) : "—"}</span></td>
   `;
@@ -364,6 +364,19 @@ function formatTime(date) {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatDateTime(date) {
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const time = formatTime(date);
+  if (isToday) return time;
+  if (isYesterday) return `Yest, ${time}`;
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) + `, ${time}`;
 }
 
 function formatTimeAgo(dateStr) {

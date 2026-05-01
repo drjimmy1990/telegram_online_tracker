@@ -529,7 +529,7 @@ body {
 }
 
 /* ── History Table ────────────────────────────────────── */
-.history-table-wrapper { max-height: 480px; overflow-y: auto; }
+.history-table-wrapper { max-height: 600px; overflow-y: auto; }
 .history-table-wrapper::-webkit-scrollbar { width: 5px; }
 .history-table-wrapper::-webkit-scrollbar-track { background: transparent; }
 .history-table-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

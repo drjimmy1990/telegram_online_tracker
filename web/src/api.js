@@ -48,17 +48,27 @@ export async function fetchEventsForDateRange(startDate, endDate, userId = null)
 }
 
 /**
- * Fetch the most recent N events (for session history).
+ * Fetch events for session history with optional date range and pagination.
  */
-export async function fetchRecentEvents(limit = 200, userId = null) {
+export async function fetchRecentEvents(limit = 50, userId = null, startDate = null, endDate = null, offset = 0) {
   let query = supabase
     .from("status_events")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (userId) {
     query = query.eq("user_id", userId);
+  }
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", start.toISOString());
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    query = query.lte("created_at", end.toISOString());
   }
 
   const { data, error } = await query;
