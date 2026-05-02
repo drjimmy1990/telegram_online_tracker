@@ -328,63 +328,83 @@ async def update_last_status(user_id: int, status: str) -> None:
     LAST_STATUS[user_id] = (status, datetime.now(timezone.utc))
 
 
+async def verify_all_statuses(threshold_seconds: int = 0) -> dict:
+    """
+    Check all tracked users' real status via Telegram API.
+    If threshold_seconds > 0, only checks users who have been Online longer than that.
+    If threshold_seconds == 0, checks ALL users unconditionally.
+    Returns a summary dict.
+    """
+    now = datetime.now(timezone.utc)
+    results = {"checked": 0, "corrected": 0, "still_online": 0, "details": []}
+
+    for user_id, display_name in list(TARGETS.items()):
+        # If threshold is set, only check users marked Online for too long
+        if threshold_seconds > 0:
+            status_entry = LAST_STATUS.get(user_id)
+            if not status_entry or status_entry[0] != "Online":
+                continue
+            age = (now - status_entry[1]).total_seconds()
+            if age < threshold_seconds:
+                continue
+
+        results["checked"] += 1
+        try:
+            entity = await client.get_entity(user_id)
+            real_status = getattr(entity, "status", None)
+
+            if isinstance(real_status, UserStatusOnline):
+                LAST_STATUS[user_id] = ("Online", now)
+                results["still_online"] += 1
+                results["details"].append({"user": display_name, "result": "Online (confirmed)"})
+                log.info("  ✓ [%s] confirmed Online", display_name)
+            elif isinstance(real_status, UserStatusOffline):
+                was_online = getattr(real_status, "was_online", None)
+                # Only insert Offline if last known status was Online
+                last = LAST_STATUS.get(user_id)
+                if not last or last[0] == "Online":
+                    await record_event(user_id, "Offline", was_last_seen=was_online)
+                    results["corrected"] += 1
+                    results["details"].append({"user": display_name, "result": "Corrected → Offline"})
+                    log.warning("  ⚠ [%s] was phantom Online → corrected to Offline", display_name)
+                else:
+                    results["details"].append({"user": display_name, "result": "Offline (already known)"})
+                LAST_STATUS[user_id] = ("Offline", now)
+            else:
+                status_name = type(real_status).__name__ if real_status else "Unknown"
+                last = LAST_STATUS.get(user_id)
+                if not last or last[0] == "Online":
+                    await record_event(user_id, "Offline")
+                    results["corrected"] += 1
+                    results["details"].append({"user": display_name, "result": f"Corrected → {status_name}"})
+                else:
+                    results["details"].append({"user": display_name, "result": status_name})
+                LAST_STATUS[user_id] = ("Offline", now)
+
+        except Exception as e:
+            log.warning("  ✗ Check failed for [%s]: %s", display_name, e)
+            results["details"].append({"user": display_name, "result": f"Error: {e}"})
+
+    return results
+
+
 async def staleness_watchdog() -> None:
-    """
-    Periodically check if any user has been 'Online' for too long
-    without any new event. If so, query Telegram directly and
-    insert a synthetic Offline event if they're actually offline.
-    """
+    """Periodically run staleness checks."""
     while True:
         await asyncio.sleep(STALENESS_CHECK_INTERVAL)
-        now = datetime.now(timezone.utc)
+        log.info("🔍 Running staleness check...")
+        results = await verify_all_statuses(threshold_seconds=STALENESS_THRESHOLD)
+        if results["corrected"] > 0:
+            log.warning("Staleness check: corrected %d phantom online user(s)", results["corrected"])
 
-        for user_id, (status, timestamp) in list(LAST_STATUS.items()):
-            if status != "Online":
-                continue
 
-            age_seconds = (now - timestamp).total_seconds()
-            if age_seconds < STALENESS_THRESHOLD:
-                continue
-
-            # This user has been "Online" for too long — verify
-            display_name = TARGETS.get(user_id, str(user_id))
-            log.info(
-                "🔍 Staleness check: [%s] has been Online for %dm — verifying...",
-                display_name,
-                int(age_seconds / 60),
-            )
-
-            try:
-                entity = await client.get_entity(user_id)
-                real_status = getattr(entity, "status", None)
-
-                if isinstance(real_status, UserStatusOnline):
-                    # Still genuinely online — reset the timer
-                    LAST_STATUS[user_id] = ("Online", now)
-                    log.info("  ✓ [%s] confirmed still Online", display_name)
-                elif isinstance(real_status, UserStatusOffline):
-                    # Actually offline — insert synthetic Offline event
-                    was_online = getattr(real_status, "was_online", None)
-                    log.warning(
-                        "  ⚠ [%s] is actually Offline (was_online=%s) — inserting missed event",
-                        display_name,
-                        was_online,
-                    )
-                    await record_event(user_id, "Offline", was_last_seen=was_online)
-                    LAST_STATUS[user_id] = ("Offline", now)
-                else:
-                    # Recently / LastWeek / etc — treat as offline
-                    status_name = type(real_status).__name__ if real_status else "Unknown"
-                    log.warning(
-                        "  ⚠ [%s] status is %s — inserting Offline",
-                        display_name,
-                        status_name,
-                    )
-                    await record_event(user_id, "Offline")
-                    LAST_STATUS[user_id] = ("Offline", now)
-
-            except Exception as e:
-                log.warning("  ✗ Staleness check failed for [%s]: %s", display_name, e)
+# API endpoint for manual status verification from dashboard
+@app.post("/api/v1/verify-status", dependencies=[Depends(verify_api_key)])
+async def api_verify_status():
+    """Force-check all users' real status via Telegram."""
+    log.info("🔍 Manual status verification triggered via API")
+    results = await verify_all_statuses(threshold_seconds=0)
+    return results
 
 
 # ── Main ─────────────────────────────────────────────────────────
@@ -396,6 +416,11 @@ async def main():
     log.info("Webhook:   %s", config.WEBHOOK_URL or "Disabled")
 
     await resolve_targets()
+
+    # Run initial status verification for all targets
+    log.info("🔍 Running initial status verification...")
+    results = await verify_all_statuses(threshold_seconds=0)
+    log.info("   Initial check: %d checked, %d corrected", results["checked"], results["corrected"])
 
     log.info("═══════════════════════════════════════════")
     log.info("   Listening for status updates...         ")

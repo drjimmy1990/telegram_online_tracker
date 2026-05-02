@@ -1067,3 +1067,9 @@ body {
   .api-param-header span:nth-child(4), .api-param-row-full span:nth-child(4) { grid-column: 1 / -1; }
   .api-docs-page { padding: var(--space-md); }
 }
+
+/* ── Verify Button Spin ────────────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

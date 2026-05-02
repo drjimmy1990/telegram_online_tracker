@@ -306,3 +306,37 @@ export async function deleteUserEvents(userId) {
   }
   return true;
 }
+
+/**
+ * Force-verify all users' real status via the tracker API.
+ * This calls the Python backend which queries Telegram directly.
+ */
+export async function verifyAllStatuses() {
+  const apiBase = import.meta.env.VITE_TRACKER_API_URL || "";
+  const apiKey = import.meta.env.VITE_TRACKER_API_KEY || "";
+
+  if (!apiBase) {
+    console.warn("[API] VITE_TRACKER_API_URL not set, cannot verify statuses");
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${apiBase}/api/v1/verify-status`, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      console.error("[API] verify-status failed:", res.status, res.statusText);
+      return null;
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error("[API] verify-status error:", e);
+    return null;
+  }
+}

@@ -18,6 +18,7 @@ import {
   removeTarget,
   toggleTarget,
   deleteUserEvents,
+  verifyAllStatuses,
 } from "./api.js";
 import { computeSessions, computeStats, computeHourlyActivity, formatDuration } from "./stats.js";
 import { renderTimeline, renderTimelineHours } from "./timeline.js";
@@ -196,6 +197,32 @@ async function initDashboard() {
     mobileFilterToggle.addEventListener("click", () => {
       mobileFilterOpen = !mobileFilterOpen;
       mobileFilterBar.style.display = mobileFilterOpen ? "block" : "none";
+    });
+  }
+
+  // Verify status button
+  const verifyBtn = document.getElementById("verify-status-btn");
+  if (verifyBtn) {
+    verifyBtn.addEventListener("click", async () => {
+      verifyBtn.disabled = true;
+      verifyBtn.style.animation = "spin 1s linear infinite";
+      try {
+        const result = await verifyAllStatuses();
+        if (result) {
+          const msg = `Checked ${result.checked} user(s).\n${result.corrected} corrected, ${result.still_online} confirmed online.`;
+          alert(msg);
+          // Refresh data to reflect corrections
+          if (result.corrected > 0) {
+            await loadAllData();
+          }
+        } else {
+          alert("Could not reach tracker API.\nMake sure VITE_TRACKER_API_URL is set in web/.env");
+        }
+      } catch (e) {
+        alert("Verify failed: " + e.message);
+      }
+      verifyBtn.disabled = false;
+      verifyBtn.style.animation = "";
     });
   }
 
