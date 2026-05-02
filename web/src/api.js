@@ -111,7 +111,11 @@ export async function fetchAllUserStatuses(users) {
     if (latest) {
       statusMap[user.user_id] = {
         status: latest.status,
-        last_seen: latest.created_at,
+        // For Offline events, use was_last_seen (when they were actually last online)
+        // For Online events, use created_at (when they came online)
+        last_seen: latest.status === "Offline"
+          ? (latest.was_last_seen || latest.created_at)
+          : latest.created_at,
       };
     }
   }

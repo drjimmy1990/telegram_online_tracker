@@ -112,7 +112,7 @@ function createUserCardEl(user, colorIndex, isActive, statusInfo, isAll) {
 /**
  * Update the status dot of a specific user card in the sidebar.
  */
-export function updateUserCardStatus(container, userId, status) {
+export function updateUserCardStatus(container, userId, status, lastSeen) {
   const card = container.querySelector(`[data-user-id="${userId}"]`);
   if (!card) return;
   const dot = card.querySelector(".status-indicator");
@@ -122,11 +122,12 @@ export function updateUserCardStatus(container, userId, status) {
     if (status === "Online") dot.classList.add("online");
     if (isPrivacy) dot.classList.add("privacy");
   }
-  const lastSeen = card.querySelector(".user-last-seen");
-  if (lastSeen) {
-    if (status === "Online") lastSeen.textContent = "Online now";
-    else if (isPrivacy) lastSeen.textContent = `🔒 ${status}`;
-    else lastSeen.textContent = "Last seen just now";
+  const lastSeenEl = card.querySelector(".user-last-seen");
+  if (lastSeenEl) {
+    if (status === "Online") lastSeenEl.textContent = "Online now";
+    else if (isPrivacy) lastSeenEl.textContent = `🔒 ${status}`;
+    else if (lastSeen) lastSeenEl.textContent = `Last seen ${formatTimeAgo(lastSeen)}`;
+    else lastSeenEl.textContent = "Last seen just now";
   }
 }
 

@@ -536,12 +536,18 @@ function setupRealtime() {
     if (isUserHidden(newEvent.user_id)) return;
 
     console.log("[Realtime] New event:", newEvent);
-    updateUserCardStatus(userListEl, newEvent.user_id, newEvent.status);
+
+    // Determine the correct "last seen" timestamp
+    const lastSeenTs = newEvent.status === "Offline"
+      ? (newEvent.was_last_seen || newEvent.created_at)
+      : newEvent.created_at;
+
+    updateUserCardStatus(userListEl, newEvent.user_id, newEvent.status, lastSeenTs);
 
     // Update statusMap
     statusMap[newEvent.user_id] = {
       status: newEvent.status,
-      last_seen: newEvent.created_at,
+      last_seen: lastSeenTs,
     };
 
     // Dynamically add new users to the sidebar if unknown
