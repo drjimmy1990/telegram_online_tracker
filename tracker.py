@@ -269,12 +269,22 @@ async def status_handler(event):
 
 import os
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 # Ensure downloads directory exists
 os.makedirs("downloads", exist_ok=True)
 
 # ── API Server ───────────────────────────────────────────────────
 app = FastAPI(title="Telegram Scraper API")
+
+# Allow dashboard to call API from browser
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount("/api/v1/media", StaticFiles(directory="downloads"), name="media")
 
 async def verify_api_key(x_api_key: str = Header(None)):
