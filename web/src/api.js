@@ -313,34 +313,44 @@ export async function deleteUserEvents(userId) {
 
 /**
  * Force-verify all users' real status via the tracker API.
- * This calls the Python backend which queries Telegram directly.
+ * Tries multiple endpoints: env var → same origin → port 8005.
  */
 export async function verifyAllStatuses() {
-  const apiBase = import.meta.env.VITE_TRACKER_API_URL || "";
-  const apiKey = import.meta.env.VITE_TRACKER_API_KEY || "";
+  const apiKey = import.meta.env.VITE_TRACKER_API_KEY || "my_super_secret_key";
 
-  if (!apiBase) {
-    console.warn("[API] VITE_TRACKER_API_URL not set, cannot verify statuses");
-    return null;
-  }
+  // Build list of URLs to try (first match wins)
+  const candidates = [];
+  const envUrl = import.meta.env.VITE_TRACKER_API_URL;
+  if (envUrl) candidates.push(envUrl);
 
-  try {
-    const res = await fetch(`${apiBase}/api/v1/verify-status`, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-    });
+  // Same origin (works if reverse proxy forwards /api/ to tracker)
+  candidates.push(window.location.origin);
 
-    if (!res.ok) {
-      console.error("[API] verify-status failed:", res.status, res.statusText);
-      return null;
+  // Direct port access (tracker docker exposes on 8005)
+  const host = window.location.hostname;
+  candidates.push(`http://${host}:8005`);
+  candidates.push(`https://${host}:8005`);
+
+  for (const base of candidates) {
+    try {
+      const res = await fetch(`${base}/api/v1/verify-status`, {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (res.ok) {
+        console.log("[API] verify-status succeeded via:", base);
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn(`[API] verify-status failed for ${base}:`, e.message);
     }
-
-    return await res.json();
-  } catch (e) {
-    console.error("[API] verify-status error:", e);
-    return null;
   }
+
+  console.error("[API] verify-status: all endpoints failed");
+  return null;
 }

@@ -216,7 +216,7 @@ async function initDashboard() {
             await loadAllData();
           }
         } else {
-          alert("Could not reach tracker API.\nMake sure VITE_TRACKER_API_URL is set in web/.env");
+          alert("Could not reach tracker API.\nThe tracker container may be down, or port 8005 needs to be proxied via nginx.\nAdd a reverse proxy rule in aaPanel: /api/ → http://127.0.0.1:8005");
         }
       } catch (e) {
         alert("Verify failed: " + e.message);
