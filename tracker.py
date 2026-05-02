@@ -240,6 +240,7 @@ async def status_handler(event):
 
     if isinstance(event.status, UserStatusOnline):
         await record_event(event.user_id, "Online")
+        await update_last_status(event.user_id, "Online")
 
     elif isinstance(event.status, UserStatusOffline):
         await record_event(
@@ -247,18 +248,23 @@ async def status_handler(event):
             "Offline",
             was_last_seen=getattr(event.status, "was_online", None),
         )
+        await update_last_status(event.user_id, "Offline")
 
     elif isinstance(event.status, UserStatusRecently):
         await record_event(event.user_id, "Recently")
+        await update_last_status(event.user_id, "Offline")
 
     elif isinstance(event.status, UserStatusLastWeek):
         await record_event(event.user_id, "Last Week")
+        await update_last_status(event.user_id, "Offline")
 
     elif isinstance(event.status, UserStatusLastMonth):
         await record_event(event.user_id, "Last Month")
+        await update_last_status(event.user_id, "Offline")
 
     elif isinstance(event.status, UserStatusEmpty):
         await record_event(event.user_id, "Hidden")
+        await update_last_status(event.user_id, "Offline")
 
 
 import os
@@ -309,6 +315,78 @@ async def get_messages(target: str, limit: int = 50, search: str = None, downloa
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ── Staleness Watchdog ───────────────────────────────────────────
+# Track last known status per user to detect missed offline events
+LAST_STATUS: dict[int, tuple[str, datetime]] = {}  # user_id -> (status, timestamp)
+
+STALENESS_CHECK_INTERVAL = 300  # 5 minutes
+STALENESS_THRESHOLD = 600       # 10 minutes — if online for longer, verify
+
+
+async def update_last_status(user_id: int, status: str) -> None:
+    """Track the last known status and when it was set."""
+    LAST_STATUS[user_id] = (status, datetime.now(timezone.utc))
+
+
+async def staleness_watchdog() -> None:
+    """
+    Periodically check if any user has been 'Online' for too long
+    without any new event. If so, query Telegram directly and
+    insert a synthetic Offline event if they're actually offline.
+    """
+    while True:
+        await asyncio.sleep(STALENESS_CHECK_INTERVAL)
+        now = datetime.now(timezone.utc)
+
+        for user_id, (status, timestamp) in list(LAST_STATUS.items()):
+            if status != "Online":
+                continue
+
+            age_seconds = (now - timestamp).total_seconds()
+            if age_seconds < STALENESS_THRESHOLD:
+                continue
+
+            # This user has been "Online" for too long — verify
+            display_name = TARGETS.get(user_id, str(user_id))
+            log.info(
+                "🔍 Staleness check: [%s] has been Online for %dm — verifying...",
+                display_name,
+                int(age_seconds / 60),
+            )
+
+            try:
+                entity = await client.get_entity(user_id)
+                real_status = getattr(entity, "status", None)
+
+                if isinstance(real_status, UserStatusOnline):
+                    # Still genuinely online — reset the timer
+                    LAST_STATUS[user_id] = ("Online", now)
+                    log.info("  ✓ [%s] confirmed still Online", display_name)
+                elif isinstance(real_status, UserStatusOffline):
+                    # Actually offline — insert synthetic Offline event
+                    was_online = getattr(real_status, "was_online", None)
+                    log.warning(
+                        "  ⚠ [%s] is actually Offline (was_online=%s) — inserting missed event",
+                        display_name,
+                        was_online,
+                    )
+                    await record_event(user_id, "Offline", was_last_seen=was_online)
+                    LAST_STATUS[user_id] = ("Offline", now)
+                else:
+                    # Recently / LastWeek / etc — treat as offline
+                    status_name = type(real_status).__name__ if real_status else "Unknown"
+                    log.warning(
+                        "  ⚠ [%s] status is %s — inserting Offline",
+                        display_name,
+                        status_name,
+                    )
+                    await record_event(user_id, "Offline")
+                    LAST_STATUS[user_id] = ("Offline", now)
+
+            except Exception as e:
+                log.warning("  ✗ Staleness check failed for [%s]: %s", display_name, e)
+
+
 # ── Main ─────────────────────────────────────────────────────────
 async def main():
     log.info("═══════════════════════════════════════════")
@@ -322,10 +400,12 @@ async def main():
     log.info("═══════════════════════════════════════════")
     log.info("   Listening for status updates...         ")
     log.info("   Polling for target changes every 60s    ")
+    log.info("   Staleness watchdog every %ds            ", STALENESS_CHECK_INTERVAL)
     log.info("═══════════════════════════════════════════")
 
-    # Start polling for target changes in the background
+    # Start background tasks
     asyncio.create_task(poll_for_target_changes())
+    asyncio.create_task(staleness_watchdog())
 
     log.info("   Starting API Server on port 8000...     ")
     server_config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
@@ -335,3 +415,4 @@ async def main():
 
 with client:
     client.loop.run_until_complete(main())
+
