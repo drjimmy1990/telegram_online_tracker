@@ -26,6 +26,8 @@ Fetch recent messages from a target group, channel, or user.
 | `search` | string | *(empty)* | Optional. Only return messages containing this exact keyword. |
 | `download_media` | boolean | `false` | Optional. If `true`, downloads media to the server and returns a direct URL link in the `media` or `media_list` field. |
 | `media_type` | string | `all` | Optional. Filter messages by media type. Valid options: `photo`, `video`, `photo_video`, `document`, `audio`, `voice`, `gif`, `all`. |
+| `before_date` | string | *(empty)* | Optional. ISO-8601 Date (e.g. `2026-05-20T10:00:00Z`). Fetch messages posted *before* this date. |
+| `after_date` | string | *(empty)* | Optional. ISO-8601 Date (e.g. `2026-05-01T00:00:00Z`). Fetch messages posted *after* this date. |
 
 ### 🚀 N8N Setup Guide
 

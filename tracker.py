@@ -305,9 +305,17 @@ async def get_messages(
     limit: int = 50, 
     search: str = None, 
     download_media: bool = False,
-    media_type: str = "all"
+    media_type: str = "all",
+    before_date: datetime = None,
+    after_date: datetime = None
 ):
     try:
+        # Ensure datetimes are timezone aware (UTC) for Telethon
+        if before_date and not before_date.tzinfo:
+            before_date = before_date.replace(tzinfo=timezone.utc)
+        if after_date and not after_date.tzinfo:
+            after_date = after_date.replace(tzinfo=timezone.utc)
+
         msg_filter = None
         if media_type == "photo":
             msg_filter = InputMessagesFilterPhotos()
@@ -327,7 +335,10 @@ async def get_messages(
         messages_result = []
         albums = {}
 
-        async for msg in client.iter_messages(target, limit=limit, search=search, filter=msg_filter):
+        async for msg in client.iter_messages(target, limit=limit, search=search, filter=msg_filter, offset_date=before_date):
+            if after_date and msg.date and msg.date < after_date:
+                break
+
             media_url = None
             media_type_str = None
 
