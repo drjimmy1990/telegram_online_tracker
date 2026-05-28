@@ -31,6 +31,13 @@ from telethon.tl.types import (
     UserStatusLastWeek,
     UserStatusLastMonth,
     UserStatusEmpty,
+    InputMessagesFilterPhotos,
+    InputMessagesFilterVideo,
+    InputMessagesFilterPhotoVideo,
+    InputMessagesFilterDocument,
+    InputMessagesFilterMusic,
+    InputMessagesFilterVoice,
+    InputMessagesFilterGif,
 )
 
 import config
@@ -293,13 +300,56 @@ async def verify_api_key(x_api_key: str = Header(None)):
     return x_api_key
 
 @app.get("/api/v1/messages", dependencies=[Depends(verify_api_key)])
-async def get_messages(target: str, limit: int = 50, search: str = None, download_media: bool = False):
+async def get_messages(
+    target: str, 
+    limit: int = 50, 
+    search: str = None, 
+    download_media: bool = False,
+    media_type: str = "all"
+):
     try:
-        messages = []
-        async for msg in client.iter_messages(target, limit=limit, search=search):
+        msg_filter = None
+        if media_type == "photo":
+            msg_filter = InputMessagesFilterPhotos()
+        elif media_type == "video":
+            msg_filter = InputMessagesFilterVideo()
+        elif media_type == "photo_video":
+            msg_filter = InputMessagesFilterPhotoVideo()
+        elif media_type == "document":
+            msg_filter = InputMessagesFilterDocument()
+        elif media_type == "audio":
+            msg_filter = InputMessagesFilterMusic()
+        elif media_type == "voice":
+            msg_filter = InputMessagesFilterVoice()
+        elif media_type == "gif":
+            msg_filter = InputMessagesFilterGif()
+
+        messages_result = []
+        albums = {}
+
+        async for msg in client.iter_messages(target, limit=limit, search=search, filter=msg_filter):
             media_url = None
+            media_type_str = None
+
             if msg.media:
-                media_url = "has_media" # default if not downloading
+                media_url = "has_media"
+                
+                # Determine media type string
+                if getattr(msg, "photo", None):
+                    media_type_str = "photo"
+                elif getattr(msg, "video", None):
+                    media_type_str = "video"
+                elif getattr(msg, "document", None):
+                    media_type_str = "document"
+                elif getattr(msg, "voice", None):
+                    media_type_str = "voice"
+                elif getattr(msg, "gif", None):
+                    media_type_str = "gif"
+                elif getattr(msg, "audio", None):
+                    media_type_str = "audio"
+                else:
+                    media_type_str = "other"
+
                 if download_media:
                     # Download media to the downloads folder
                     file_path = await client.download_media(msg, file="downloads/")
@@ -311,15 +361,46 @@ async def get_messages(target: str, limit: int = 50, search: str = None, downloa
                         # Failed to download (e.g. WebPage preview), don't return 'has_media'
                         media_url = None
 
-            messages.append({
-                "id": msg.id,
-                "text": msg.message or "",
-                "date": msg.date.isoformat() if msg.date else None,
-                "sender_id": msg.sender_id,
-                "views": getattr(msg, "views", None),
-                "media": media_url
-            })
-        return {"target": target, "count": len(messages), "messages": messages}
+            # Handle Albums (Grouped Media)
+            if msg.grouped_id:
+                if msg.grouped_id not in albums:
+                    album = {
+                        "id": msg.id,
+                        "grouped_id": msg.grouped_id,
+                        "text": msg.message or "",
+                        "date": msg.date.isoformat() if msg.date else None,
+                        "sender_id": msg.sender_id,
+                        "views": getattr(msg, "views", None),
+                        "media_list": []
+                    }
+                    albums[msg.grouped_id] = album
+                    messages_result.append(album)
+                else:
+                    album = albums[msg.grouped_id]
+                    if msg.message:
+                        album["text"] = msg.message if not album["text"] else album["text"] + "\n" + msg.message
+                    if getattr(msg, "views", None) is not None:
+                        album["views"] = msg.views
+                
+                if media_url:
+                    albums[msg.grouped_id]["media_list"].append({
+                        "message_id": msg.id,
+                        "url": media_url,
+                        "type": media_type_str
+                    })
+            else:
+                # Standalone message
+                messages_result.append({
+                    "id": msg.id,
+                    "text": msg.message or "",
+                    "date": msg.date.isoformat() if msg.date else None,
+                    "sender_id": msg.sender_id,
+                    "views": getattr(msg, "views", None),
+                    "media": media_url,
+                    "media_type": media_type_str
+                })
+                
+        return {"target": target, "count": len(messages_result), "messages": messages_result}
     except Exception as e:
         log.error("API error fetching messages for %s: %s", target, e)
         raise HTTPException(status_code=400, detail=str(e))

@@ -24,7 +24,8 @@ Fetch recent messages from a target group, channel, or user.
 | `target` | string | **Required** | The username (e.g. `BinanceAnnouncements`), invite link, or ID. |
 | `limit` | integer | `50` | Maximum number of messages to return. Max 100 recommended per request. |
 | `search` | string | *(empty)* | Optional. Only return messages containing this exact keyword. |
-| `download_media` | boolean | `false` | Optional. If `true`, downloads photos/videos to the server and returns a direct URL link in the `media` field. |
+| `download_media` | boolean | `false` | Optional. If `true`, downloads media to the server and returns a direct URL link in the `media` or `media_list` field. |
+| `media_type` | string | `all` | Optional. Filter messages by media type. Valid options: `photo`, `video`, `photo_video`, `document`, `audio`, `voice`, `gif`, `all`. |
 
 ### 🚀 N8N Setup Guide
 
@@ -52,6 +53,12 @@ curl -X GET "http://<YOUR_VPS_IP>:8005/api/v1/messages?target=BinanceAnnouncemen
      -H "x-api-key: my_super_secret_key"
 ```
 
+**3. Fetch only videos (with downloads enabled)**
+```bash
+curl -X GET "http://<YOUR_VPS_IP>:8005/api/v1/messages?target=BinanceAnnouncements&media_type=video&download_media=true" \
+     -H "x-api-key: my_super_secret_key"
+```
+
 ---
 
 ## 📦 JSON Response Format
@@ -65,17 +72,32 @@ The API returns a JSON object containing the metadata and the array of messages.
   "messages": [
     {
       "id": 14502,
-      "text": "Bitcoin has reached a new all-time high!",
+      "grouped_id": 1234567890123,
+      "text": "Bitcoin has reached a new all-time high! Here are the charts 📊",
       "date": "2026-04-30T10:15:00+00:00",
       "sender_id": 123456789,
-      "views": 45000
+      "views": 45000,
+      "media_list": [
+        {
+          "message_id": 14502,
+          "url": "/api/v1/media/photo_1.jpg",
+          "type": "photo"
+        },
+        {
+          "message_id": 14503,
+          "url": "/api/v1/media/photo_2.jpg",
+          "type": "photo"
+        }
+      ]
     },
     {
       "id": 14501,
       "text": "Trading pairs for $XYZ will be listed tomorrow at 12:00 PM UTC.",
       "date": "2026-04-30T09:30:00+00:00",
       "sender_id": 123456789,
-      "views": 41200
+      "views": 41200,
+      "media": null,
+      "media_type": null
     }
   ]
 }
