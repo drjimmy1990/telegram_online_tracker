@@ -489,6 +489,38 @@ async def staleness_watchdog() -> None:
             log.warning("Staleness check: corrected %d phantom online user(s)", results["corrected"])
 
 
+import time
+
+async def media_cleanup_watchdog() -> None:
+    """Periodically check and delete media files older than 24 hours."""
+    while True:
+        await asyncio.sleep(3600)  # Check every hour
+        log.info("🧹 Running media cleanup task...")
+        try:
+            download_dir = "downloads/"
+            if not os.path.exists(download_dir):
+                continue
+
+            now = time.time()
+            cutoff_time = now - (24 * 3600) # 24 hours ago
+            deleted_count = 0
+
+            for filename in os.listdir(download_dir):
+                filepath = os.path.join(download_dir, filename)
+                if os.path.isfile(filepath):
+                    file_mod_time = os.path.getmtime(filepath)
+                    if file_mod_time < cutoff_time:
+                        try:
+                            os.remove(filepath)
+                            deleted_count += 1
+                        except Exception as e:
+                            log.warning("Could not delete old media file %s: %s", filepath, e)
+            
+            if deleted_count > 0:
+                log.info("🧹 Media cleanup complete. Deleted %d old files.", deleted_count)
+        except Exception as e:
+            log.error("Error in media cleanup watchdog: %s", e)
+
 # API endpoint for manual status verification from dashboard
 @app.post("/api/v1/verify-status", dependencies=[Depends(verify_api_key)])
 async def api_verify_status():
@@ -522,6 +554,7 @@ async def main():
     # Start background tasks
     asyncio.create_task(poll_for_target_changes())
     asyncio.create_task(staleness_watchdog())
+    asyncio.create_task(media_cleanup_watchdog())
 
     log.info("   Starting API Server on port 8000...     ")
     server_config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")

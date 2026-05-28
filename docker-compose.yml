@@ -10,6 +10,8 @@ services:
     volumes:
       # Persist the session file so it survives container rebuilds
       - ./tracker_session.session:/app/tracker_session.session
+      # Expose downloads to the host so they are easily accessible and persistent
+      - ./downloads:/app/downloads
     logging:
       driver: json-file
       options:
